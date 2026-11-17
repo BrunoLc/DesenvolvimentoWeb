@@ -9,7 +9,7 @@ const DB_HOST    = 'localhost';
 const DB_PORTA   = 3306;
 const DB_NOME    = 'petcare';
 const DB_USUARIO = 'root';
-const DB_SENHA   = '';
+const DB_SENHA   = 'ceub123456';
 
 function conectar(): PDO
 {
