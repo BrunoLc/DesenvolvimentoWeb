@@ -1,0 +1,7 @@
+RewriteEngine On
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+# Toda requisição (exceto o próprio index.php) vai para o roteador.
+# Assim banco.sql, README.md e a pasta src/ não ficam acessíveis pelo navegador.
+RewriteCond %{REQUEST_URI} !index\.php$
+RewriteRule ^ index.php [L,QSA]

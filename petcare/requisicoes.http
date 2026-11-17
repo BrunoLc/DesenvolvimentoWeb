@@ -1,0 +1,422 @@
+# PetCare · requisições de teste
+# Use a extensão "REST Client" do VS Code: clique em "Send Request" acima de cada requisição.
+# Rode de cima para baixo (a primeira faz o login e as outras reaproveitam o token).
+# Se a sua pasta não estiver em http://localhost/petcare, ajuste a variável @base.
+
+@base = http://localhost/petcare
+@json = application/json
+
+###############################################################
+# LOGIN
+###############################################################
+
+### 1. Login correto -> 200 com o token
+# @name login
+POST {{base}}/login
+Content-Type: {{json}}
+
+{
+  "email": "professor@petcare.com",
+  "senha": "petcare123"
+}
+
+### 2. Login com senha errada -> 401 "E-mail ou senha inválidos"
+POST {{base}}/login
+Content-Type: {{json}}
+
+{
+  "email": "professor@petcare.com",
+  "senha": "senha-errada"
+}
+
+### 3. Login com e-mail que não existe -> 401 (mesma mensagem do caso anterior)
+POST {{base}}/login
+Content-Type: {{json}}
+
+{
+  "email": "ninguem@petcare.com",
+  "senha": "qualquer"
+}
+
+### 4. Login sem os campos -> 422 com a lista de erros
+POST {{base}}/login
+Content-Type: {{json}}
+
+{
+  "email": "",
+  "senha": ""
+}
+
+### 5. Login com corpo que não é JSON -> 400
+POST {{base}}/login
+Content-Type: {{json}}
+
+isto não é json
+
+###############################################################
+# TUTORES · consultas (sem token)
+###############################################################
+
+### 6. Listar tutores -> 200 com total e lista
+GET {{base}}/tutores
+
+### 7. Buscar um tutor -> 200
+GET {{base}}/tutores/1
+
+### 8. Tutor que não existe -> 404
+GET {{base}}/tutores/999
+
+### 9. Pets de um tutor (Mariana tem 3) -> 200
+GET {{base}}/tutores/1/pets
+
+### 10. Pets de um tutor que não existe -> 404
+GET {{base}}/tutores/999/pets
+
+###############################################################
+# TUTORES · cadastrar, alterar e excluir (com token)
+###############################################################
+
+### 11. Cadastrar tutor -> 201 com o id criado
+# @name criarTutor
+POST {{base}}/tutores
+Content-Type: {{json}}
+Authorization: Bearer {{login.response.body.token}}
+
+{
+  "nome": "Paulo Ribeiro",
+  "telefone": "(11) 95555-1234",
+  "email": "paulo.ribeiro@email.com"
+}
+
+### 12. Cadastrar tutor sem token -> 401 "Token não informado"
+POST {{base}}/tutores
+Content-Type: {{json}}
+
+{
+  "nome": "Sem Token",
+  "telefone": "(11) 95555-0000",
+  "email": "sem.token@email.com"
+}
+
+### 13. Cadastrar tutor com token inválido -> 401 "Token inválido ou expirado"
+POST {{base}}/tutores
+Content-Type: {{json}}
+Authorization: Bearer 0000000000000000000000000000000000000000000000000000000000000000
+
+{
+  "nome": "Token Falso",
+  "telefone": "(11) 95555-0000",
+  "email": "token.falso@email.com"
+}
+
+### 14. Cadastrar tutor com e-mail repetido -> 409
+POST {{base}}/tutores
+Content-Type: {{json}}
+Authorization: Bearer {{login.response.body.token}}
+
+{
+  "nome": "Outra Pessoa",
+  "telefone": "(11) 95555-9999",
+  "email": "paulo.ribeiro@email.com"
+}
+
+### 15. Cadastrar tutor com dados inválidos -> 422 com a lista de erros
+POST {{base}}/tutores
+Content-Type: {{json}}
+Authorization: Bearer {{login.response.body.token}}
+
+{
+  "nome": "A",
+  "telefone": "",
+  "email": "email-invalido"
+}
+
+### 16. Cadastrar tutor com corpo que não é JSON -> 400
+POST {{base}}/tutores
+Content-Type: {{json}}
+Authorization: Bearer {{login.response.body.token}}
+
+{ isto está quebrado
+
+### 17. Alterar tutor -> 200 com o tutor alterado
+PUT {{base}}/tutores/{{criarTutor.response.body.id}}
+Content-Type: {{json}}
+Authorization: Bearer {{login.response.body.token}}
+
+{
+  "nome": "Paulo Ribeiro Filho",
+  "telefone": "(11) 95555-4321",
+  "email": "paulo.ribeiro@email.com"
+}
+
+### 18. Alterar tutor que não existe -> 404
+PUT {{base}}/tutores/999
+Content-Type: {{json}}
+Authorization: Bearer {{login.response.body.token}}
+
+{
+  "nome": "Ninguém",
+  "telefone": "(11) 90000-0000",
+  "email": "ninguem@email.com"
+}
+
+### 19. Alterar tutor usando o e-mail de outro -> 409
+PUT {{base}}/tutores/{{criarTutor.response.body.id}}
+Content-Type: {{json}}
+Authorization: Bearer {{login.response.body.token}}
+
+{
+  "nome": "Paulo Ribeiro",
+  "telefone": "(11) 95555-4321",
+  "email": "mariana.souza@email.com"
+}
+
+### 20. Alterar tutor com dados inválidos -> 422
+PUT {{base}}/tutores/{{criarTutor.response.body.id}}
+Content-Type: {{json}}
+Authorization: Bearer {{login.response.body.token}}
+
+{
+  "nome": "",
+  "telefone": "",
+  "email": "x"
+}
+
+### 21. Excluir tutor que tem pets (Mariana, id 1) -> 409 (regra: impedir a exclusão)
+DELETE {{base}}/tutores/1
+Authorization: Bearer {{login.response.body.token}}
+
+### 22. Excluir tutor que não existe -> 404
+DELETE {{base}}/tutores/999
+Authorization: Bearer {{login.response.body.token}}
+
+### 23. Excluir sem token -> 401
+DELETE {{base}}/tutores/1
+
+### 24. Excluir o tutor criado no passo 11 (não tem pets) -> 204
+DELETE {{base}}/tutores/{{criarTutor.response.body.id}}
+Authorization: Bearer {{login.response.body.token}}
+
+###############################################################
+# PETS · consultas (sem token)
+###############################################################
+
+### 25. Listar todos os pets -> 200
+GET {{base}}/pets
+
+### 26. Filtrar por espécie -> 200 só com gatos
+GET {{base}}/pets?especie=gato
+
+### 27. Filtrar por espécie sem resultados -> 200 com lista vazia
+GET {{base}}/pets?especie=outro&especie=dragao
+
+### 28. Buscar um pet, com o nome do tutor (JOIN) -> 200
+GET {{base}}/pets/1
+
+### 29. Pet que não existe -> 404
+GET {{base}}/pets/999
+
+###############################################################
+# PETS · cadastrar, alterar e excluir (com token)
+###############################################################
+
+### 30. Cadastrar pet -> 201 com o id criado
+# @name criarPet
+POST {{base}}/pets
+Content-Type: {{json}}
+Authorization: Bearer {{login.response.body.token}}
+
+{
+  "nome": "Rocky",
+  "especie": "cachorro",
+  "raca": "Boxer",
+  "data_nascimento": "2022-05-10",
+  "peso_kg": 25.5,
+  "tutor_id": 6
+}
+
+### 31. Cadastrar pet sem raça (pode ser nula) -> 201
+POST {{base}}/pets
+Content-Type: {{json}}
+Authorization: Bearer {{login.response.body.token}}
+
+{
+  "nome": "Pipoca",
+  "especie": "gato",
+  "data_nascimento": "2023-01-15",
+  "peso_kg": 3.9,
+  "tutor_id": 6
+}
+
+### 32. Cadastrar pet sem token -> 401
+POST {{base}}/pets
+Content-Type: {{json}}
+
+{
+  "nome": "Sem Token",
+  "especie": "gato",
+  "data_nascimento": "2023-01-15",
+  "peso_kg": 3.9,
+  "tutor_id": 6
+}
+
+### 33. Cadastrar pet com dados inválidos -> 422 com a lista de erros
+POST {{base}}/pets
+Content-Type: {{json}}
+Authorization: Bearer {{login.response.body.token}}
+
+{
+  "nome": "R",
+  "especie": "dragão",
+  "data_nascimento": "2099-01-01",
+  "peso_kg": 0,
+  "tutor_id": 6
+}
+
+### 34. Cadastrar pet com peso acima de 200 -> 422
+POST {{base}}/pets
+Content-Type: {{json}}
+Authorization: Bearer {{login.response.body.token}}
+
+{
+  "nome": "Gigante",
+  "especie": "outro",
+  "data_nascimento": "2020-01-01",
+  "peso_kg": 250,
+  "tutor_id": 6
+}
+
+### 35. Cadastrar pet com data em formato errado -> 422
+POST {{base}}/pets
+Content-Type: {{json}}
+Authorization: Bearer {{login.response.body.token}}
+
+{
+  "nome": "Datado",
+  "especie": "gato",
+  "data_nascimento": "10/05/2022",
+  "peso_kg": 4,
+  "tutor_id": 6
+}
+
+### 36. Cadastrar pet com tutor que não existe -> 422
+POST {{base}}/pets
+Content-Type: {{json}}
+Authorization: Bearer {{login.response.body.token}}
+
+{
+  "nome": "Sem Dono",
+  "especie": "gato",
+  "data_nascimento": "2023-01-15",
+  "peso_kg": 3.9,
+  "tutor_id": 999
+}
+
+### 37. Alterar pet -> 200 com o pet alterado
+PUT {{base}}/pets/{{criarPet.response.body.id}}
+Content-Type: {{json}}
+Authorization: Bearer {{login.response.body.token}}
+
+{
+  "nome": "Rocky Jr",
+  "especie": "cachorro",
+  "raca": "Boxer",
+  "data_nascimento": "2022-05-10",
+  "peso_kg": 27,
+  "tutor_id": 6
+}
+
+### 38. Alterar pet que não existe -> 404
+PUT {{base}}/pets/999
+Content-Type: {{json}}
+Authorization: Bearer {{login.response.body.token}}
+
+{
+  "nome": "Fantasma",
+  "especie": "gato",
+  "data_nascimento": "2023-01-15",
+  "peso_kg": 3.9,
+  "tutor_id": 6
+}
+
+### 39. Alterar pet com dados inválidos -> 422
+PUT {{base}}/pets/{{criarPet.response.body.id}}
+Content-Type: {{json}}
+Authorization: Bearer {{login.response.body.token}}
+
+{
+  "nome": "",
+  "especie": "x",
+  "data_nascimento": "",
+  "peso_kg": -1,
+  "tutor_id": 0
+}
+
+### 40. Alterar pet sem token -> 401
+PUT {{base}}/pets/1
+Content-Type: {{json}}
+
+{
+  "nome": "Sem Token",
+  "especie": "gato",
+  "data_nascimento": "2023-01-15",
+  "peso_kg": 3.9,
+  "tutor_id": 1
+}
+
+### 41. Excluir o pet criado no passo 30 -> 204
+DELETE {{base}}/pets/{{criarPet.response.body.id}}
+Authorization: Bearer {{login.response.body.token}}
+
+### 42. Excluir pet que não existe -> 404
+DELETE {{base}}/pets/999
+Authorization: Bearer {{login.response.body.token}}
+
+### 43. Excluir pet sem token -> 401
+DELETE {{base}}/pets/1
+
+###############################################################
+# LOGOUT e token expirado
+###############################################################
+
+### 44. Logout sem token -> 401
+POST {{base}}/logout
+
+### 45. Fazer um novo login só para o teste de logout
+# @name loginLogout
+POST {{base}}/login
+Content-Type: {{json}}
+
+{
+  "email": "professor@petcare.com",
+  "senha": "petcare123"
+}
+
+### 46. Logout -> 204 (apaga o token da tabela)
+POST {{base}}/logout
+Authorization: Bearer {{loginLogout.response.body.token}}
+
+### 47. Usar o mesmo token depois do logout -> 401
+POST {{base}}/tutores
+Content-Type: {{json}}
+Authorization: Bearer {{loginLogout.response.body.token}}
+
+{
+  "nome": "Depois do Logout",
+  "telefone": "(11) 95555-0000",
+  "email": "depois.logout@email.com"
+}
+
+# Token EXPIRADO (validade de 2 horas): para testar sem esperar, rode no MySQL
+#   UPDATE tokens SET expira_em = NOW() - INTERVAL 1 MINUTE;
+# e repita a requisição 11 com o token do login: a resposta deve ser 401 "Token inválido ou expirado".
+
+###############################################################
+# Rota inexistente
+###############################################################
+
+### 48. Rota que não existe -> 404 "Rota não encontrada"
+GET {{base}}/rota-que-nao-existe
+
+### 49. Método não previsto numa rota existente -> 404
+PATCH {{base}}/tutores/1
